@@ -1,38 +1,3 @@
-(function () {
-
-  // زر إنشاء ستوري داخل الشات
-  const btn = document.createElement("div");
-
-  btn.innerText = "+ Story";
-  btn.style.cssText = `
-    position: fixed;
-    bottom: 80px;
-    right: 20px;
-    background: #ff2d55;
-    color: white;
-    padding: 12px 16px;
-    border-radius: 25px;
-    font-size: 14px;
-    font-weight: bold;
-    cursor: pointer;
-    z-index: 999999;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-  `;
-
-  document.body.appendChild(btn);
-
-  // عند الضغط يفتح رفع الستوري الموجود عندك
-  btn.onclick = function () {
-    if (typeof SEND_Story === "function") {
-      SEND_Story();
-    } else {
-      alert("SEND_Story غير موجود");
-    }
-  };
-
-})();
-
-
 
 
 
