@@ -3,13 +3,7 @@
 
     /* =========================================================
        TH SONG — PLAYER ONLY SYNC
-       FINAL VERSION
-       ---------------------------------------------------------
-       - Custom player = visible target
-       - Wall = persistence only
-       - Wall audio = hidden/consumed
-       - PMSG sync = consumed before chat/announcement rendering
-       - Play / Pause / Seek / Song Switch synchronization
+       FINAL — NO PMSG / NO ANNOUNCEMENT
        ========================================================= */
 
     var PREFIX = '__TH_SONG_PLAYER_SYNC__';
@@ -19,12 +13,12 @@
        منع تشغيل نسخة ثانية
        --------------------------------------------------------- */
 
-    if (window.__TH_SONG_PLAYER_SYNC_FINAL__) {
+    if (window.__TH_SONG_PLAYER_SYNC_FINAL_2__) {
         console.log('⚠️ TH SONG PLAYER SYNC موجود مسبقًا');
         return;
     }
 
-    window.__TH_SONG_PLAYER_SYNC_FINAL__ = true;
+    window.__TH_SONG_PLAYER_SYNC_FINAL_2__ = true;
 
     /* ---------------------------------------------------------
        STATE
@@ -32,8 +26,10 @@
 
     var state = {
         audio: null,
+
         currentUrl: '',
         currentName: '',
+
         applyingRemote: false,
 
         lastSyncMessage: '',
@@ -41,15 +37,13 @@
 
         observer: null,
         uploadTimer: null,
-        bindTimer: null,
 
-        oldAddMsg: null,
-        installed: false
+        oldAddMsg: null
     };
 
-    /* ---------------------------------------------------------
-       Helpers
-       --------------------------------------------------------- */
+    /* =========================================================
+       HELPERS
+       ========================================================= */
 
     function cleanUrl(url) {
 
@@ -82,19 +76,28 @@
 
         try {
 
-            url = cleanUrl(url);
-
-            if (!url) {
-                return '';
-            }
-
-            return url
+            return cleanUrl(url)
                 .replace(/&amp;/gi, '&')
                 .trim();
 
         } catch (e) {
 
             return '';
+
+        }
+    }
+
+    function decodeSafe(value) {
+
+        try {
+
+            return decodeURIComponent(
+                String(value || '')
+            );
+
+        } catch (e) {
+
+            return String(value || '');
 
         }
     }
@@ -122,8 +125,11 @@
                 s &&
                 s.audio instanceof HTMLAudioElement
             ) {
+
                 state.audio = s.audio;
+
                 return s.audio;
+
             }
 
         } catch (e) {}
@@ -132,7 +138,9 @@
             state.audio &&
             state.audio instanceof HTMLAudioElement
         ) {
+
             return state.audio;
+
         }
 
         return null;
@@ -144,7 +152,10 @@
 
             var s = getState();
 
-            if (s && s.audioUrl) {
+            if (
+                s &&
+                s.audioUrl
+            ) {
 
                 return normalizeUrl(
                     s.audioUrl
@@ -176,10 +187,15 @@
 
             var s = getState();
 
-            if (s && s.audioName) {
+            if (
+                s &&
+                s.audioName
+            ) {
+
                 return String(
                     s.audioName
                 );
+
             }
 
         } catch (e) {}
@@ -192,16 +208,18 @@
 
         try {
 
-            name = String(name || '');
-
             var el =
                 document.getElementById(
                     'TH_SONG_NAME'
                 );
 
             if (el) {
+
                 el.textContent =
-                    name || 'بدون اسم';
+                    String(
+                        name || 'بدون اسم'
+                    );
+
             }
 
         } catch (e) {}
@@ -218,8 +236,10 @@
                 );
 
             if (el) {
+
                 el.textContent =
                     String(text || '');
+
             }
 
         } catch (e) {}
@@ -231,13 +251,13 @@
         try {
 
             if (
-                typeof window.CURRENT_ROOM !==
-                'undefined' &&
                 window.CURRENT_ROOM
             ) {
+
                 return String(
                     window.CURRENT_ROOM
                 );
+
             }
 
         } catch (e) {}
@@ -245,13 +265,13 @@
         try {
 
             if (
-                typeof window.room_id !==
-                'undefined' &&
                 window.room_id
             ) {
+
                 return String(
                     window.room_id
                 );
+
             }
 
         } catch (e) {}
@@ -259,13 +279,13 @@
         try {
 
             if (
-                typeof window.roomid !==
-                'undefined' &&
                 window.roomid
             ) {
+
                 return String(
                     window.roomid
                 );
+
             }
 
         } catch (e) {}
@@ -273,43 +293,12 @@
         try {
 
             if (
-                typeof window.room !==
-                'undefined' &&
                 window.room
             ) {
+
                 return String(
                     window.room
                 );
-            }
-
-        } catch (e) {}
-
-        try {
-
-            var item =
-                document.querySelector(
-                    '.room.th-room-item.sel,' +
-                    '.room.th-room-item.active,' +
-                    '.room.th-room-item'
-                );
-
-            if (item) {
-
-                var html =
-                    item.getAttribute(
-                        'onclick'
-                    ) || '';
-
-                var match =
-                    html.match(
-                        /Send_Rjoin\(\s*['"]([^'"]+)['"]/i
-                    );
-
-                if (match) {
-                    return String(
-                        match[1]
-                    );
-                }
 
             }
 
@@ -328,9 +317,9 @@
 
     }
 
-    /* ---------------------------------------------------------
-       Player loader
-       --------------------------------------------------------- */
+    /* =========================================================
+       LOAD PLAYER
+       ========================================================= */
 
     function loadPlayer(url, name) {
 
@@ -348,11 +337,8 @@
 
             if (!audio) {
 
-                console.log(
-                    '⏳ TH SONG: player not ready'
-                );
-
                 return false;
+
             }
 
             var s =
@@ -374,12 +360,16 @@
 
             }
 
-            if (
+            var current =
                 normalizeUrl(
                     audio.currentSrc ||
                     audio.src ||
                     ''
-                ) !== url
+                );
+
+            if (
+                current !==
+                url
             ) {
 
                 audio.pause();
@@ -388,17 +378,15 @@
                     url;
 
                 try {
+
                     audio.load();
+
                 } catch (e) {}
 
             }
 
             setPlayerName(
                 name
-            );
-
-            setStatus(
-                'تم تحميل الأغنية'
             );
 
             return true;
@@ -416,9 +404,179 @@
 
     }
 
-    /* ---------------------------------------------------------
-       Remote apply
-       --------------------------------------------------------- */
+    /* =========================================================
+       SEND SYNC
+       ---------------------------------------------------------
+       IMPORTANT:
+       NO SEND_PMSG_TIGERHOST_EVENT
+       NO ANNOUNCEMENT
+       ========================================================= */
+
+    function sendSync(
+        action,
+        url,
+        name,
+        time
+    ) {
+
+        try {
+
+            if (
+                songExcluded()
+            ) {
+
+                return false;
+
+            }
+
+            if (
+                typeof window.SEND_EVENT_TIGERHOST !==
+                'function'
+            ) {
+
+                console.log(
+                    '❌ SEND_EVENT_TIGERHOST غير موجود'
+                );
+
+                return false;
+
+            }
+
+            url =
+                normalizeUrl(url);
+
+            name =
+                String(name || '');
+
+            var msg =
+                PREFIX +
+                '|' +
+                String(action || '') +
+                '|' +
+                encodeURIComponent(url) +
+                '|' +
+                encodeURIComponent(name) +
+                '|' +
+                Number(
+                    time || 0
+                ).toFixed(3);
+
+            /*
+             * =================================================
+             * هنا التغيير الأساسي
+             *
+             * كان:
+             *
+             * SEND_PMSG_TIGERHOST_EVENT
+             *
+             * وهذا يسبب إعلان.
+             *
+             * الآن:
+             *
+             * SEND_BC_TIGERHOST_EVENT
+             *
+             * type: chat
+             *
+             * =================================================
+             */
+
+            window.SEND_EVENT_TIGERHOST(
+                'SEND_BC_TIGERHOST_EVENT',
+                {
+                    msg: msg,
+                    link: '',
+                    type: 'chat'
+                }
+            );
+
+            console.log(
+                '📡 TH SONG SYNC SENT:',
+                action,
+                time
+            );
+
+            return true;
+
+        } catch (e) {
+
+            console.error(
+                'TH SONG SYNC SEND ERROR:',
+                e
+            );
+
+            return false;
+
+        }
+
+    }
+
+    /* =========================================================
+       PARSE SYNC
+       ========================================================= */
+
+    function parseSync(msg) {
+
+        try {
+
+            msg =
+                String(msg || '');
+
+            if (
+                msg.indexOf(
+                    PREFIX + '|'
+                ) !== 0
+            ) {
+
+                return null;
+
+            }
+
+            var parts =
+                msg.split('|');
+
+            if (
+                parts.length < 5
+            ) {
+
+                return null;
+
+            }
+
+            return {
+
+                action:
+                    String(
+                        parts[1] || ''
+                    ),
+
+                url:
+                    decodeSafe(
+                        parts[2]
+                    ),
+
+                name:
+                    decodeSafe(
+                        parts[3]
+                    ),
+
+                time:
+                    Number(
+                        parts[4]
+                    )
+
+            };
+
+        } catch (e) {
+
+            return null;
+
+        }
+
+    }
+
+    /* =========================================================
+       APPLY REMOTE
+       ========================================================= */
 
     function applyRemote(
         action,
@@ -429,8 +587,12 @@
 
         try {
 
-            if (songExcluded()) {
+            if (
+                songExcluded()
+            ) {
+
                 return;
+
             }
 
             url =
@@ -442,24 +604,22 @@
             var t =
                 Number(time);
 
-            if (!Number.isFinite(t)) {
+            if (
+                !Number.isFinite(t)
+            ) {
+
                 t = 0;
+
             }
 
             if (!url) {
                 return;
             }
 
-            state.applyingRemote =
-                true;
-
             var audio =
                 getAudio();
 
             if (!audio) {
-
-                state.applyingRemote =
-                    false;
 
                 setTimeout(
                     function () {
@@ -479,6 +639,9 @@
 
             }
 
+            state.applyingRemote =
+                true;
+
             var current =
                 normalizeUrl(
                     audio.currentSrc ||
@@ -486,7 +649,10 @@
                     ''
                 );
 
-            if (current !== url) {
+            if (
+                current !==
+                url
+            ) {
 
                 loadPlayer(
                     url,
@@ -528,7 +694,8 @@
                 if (
                     Math.abs(
                         Number(
-                            audio.currentTime || 0
+                            audio.currentTime ||
+                            0
                         ) - t
                     ) > 0.20
                 ) {
@@ -541,8 +708,8 @@
             } catch (e) {}
 
             if (
-                action === 'switch' ||
                 action === 'play' ||
+                action === 'switch' ||
                 action === 'seek-play'
             ) {
 
@@ -567,20 +734,23 @@
 
                 }
 
+                setStatus(
+                    'يعمل'
+                );
+
             } else {
 
                 try {
+
                     audio.pause();
+
                 } catch (e) {}
 
-            }
+                setStatus(
+                    'متوقف'
+                );
 
-            setStatus(
-                action === 'pause' ||
-                action === 'seek-pause'
-                    ? 'متوقف'
-                    : 'يعمل'
-            );
+            }
 
             setTimeout(
                 function () {
@@ -597,230 +767,13 @@
             state.applyingRemote =
                 false;
 
-            console.error(
-                'TH SONG REMOTE ERROR:',
-                e
-            );
-
         }
 
     }
 
-    /* ---------------------------------------------------------
-       Decode
-       --------------------------------------------------------- */
-
-    function decodeSafe(value) {
-
-        try {
-
-            return decodeURIComponent(
-                String(value || '')
-            );
-
-        } catch (e) {
-
-            return String(
-                value || ''
-            );
-
-        }
-
-    }
-
-    /* ---------------------------------------------------------
-       Persistence — Wall only
-       --------------------------------------------------------- */
-
-    function persistToWall(
-        url
-    ) {
-
-        try {
-
-            if (
-                songExcluded() ||
-                !url
-            ) {
-                return false;
-            }
-
-            if (
-                typeof window.SEND_EVENT_TIGERHOST !==
-                'function'
-            ) {
-
-                console.log(
-                    '❌ SEND_EVENT_TIGERHOST غير موجود'
-                );
-
-                return false;
-
-            }
-
-            window.SEND_EVENT_TIGERHOST(
-                'SEND_BC_TIGERHOST_EVENT',
-                {
-                    msg: '',
-                    link: cleanUrl(url),
-                    type: 'wall'
-                }
-            );
-
-            console.log(
-                '💾 TH SONG: saved to wall storage'
-            );
-
-            return true;
-
-        } catch (e) {
-
-            console.error(
-                'TH SONG WALL SAVE ERROR:',
-                e
-            );
-
-            return false;
-
-        }
-
-    }
-
-    /* ---------------------------------------------------------
-       Sync sender
-       --------------------------------------------------------- */
-
-    function sendSync(
-        action,
-        url,
-        name,
-        time
-    ) {
-
-        try {
-
-            if (
-                songExcluded()
-            ) {
-                return false;
-            }
-
-            if (
-                typeof window.SEND_EVENT_TIGERHOST !==
-                'function'
-            ) {
-                return false;
-            }
-
-            url =
-                normalizeUrl(url);
-
-            name =
-                String(name || '');
-
-            var msg =
-                PREFIX +
-                '|' +
-                String(action || '') +
-                '|' +
-                encodeURIComponent(
-                    url
-                ) +
-                '|' +
-                encodeURIComponent(
-                    name
-                ) +
-                '|' +
-                Number(
-                    time || 0
-                ).toFixed(3);
-
-            window.SEND_EVENT_TIGERHOST(
-                'SEND_PMSG_TIGERHOST_EVENT',
-                {
-                    msg: msg,
-                    state: 'all'
-                }
-            );
-
-            return true;
-
-        } catch (e) {
-
-            console.error(
-                'TH SONG SYNC SEND ERROR:',
-                e
-            );
-
-            return false;
-
-        }
-
-    }
-
-    /* ---------------------------------------------------------
-       Parse sync
-       --------------------------------------------------------- */
-
-    function parseSync(
-        msg
-    ) {
-
-        try {
-
-            msg =
-                String(msg || '');
-
-            if (
-                msg.indexOf(
-                    PREFIX + '|'
-                ) !== 0
-            ) {
-                return null;
-            }
-
-            var parts =
-                msg.split('|');
-
-            if (
-                parts.length < 5
-            ) {
-                return null;
-            }
-
-            return {
-                action:
-                    String(
-                        parts[1] || ''
-                    ),
-
-                url:
-                    decodeSafe(
-                        parts[2]
-                    ),
-
-                name:
-                    decodeSafe(
-                        parts[3]
-                    ),
-
-                time:
-                    Number(
-                        parts[4]
-                    )
-            };
-
-        } catch (e) {
-
-            return null;
-
-        }
-
-    }
-
-    /* ---------------------------------------------------------
-       Consume sync with dedupe
-       --------------------------------------------------------- */
+    /* =========================================================
+       CONSUME SYNC
+       ========================================================= */
 
     function consumeSyncMessage(
         msg
@@ -845,12 +798,7 @@
                 Date.now();
 
             /*
-             * نفس الرسالة قد تمر:
-             * socket
-             * ADDMSG
-             * local echo
-             *
-             * نمنع تطبيقها مرتين.
+             * منع تكرار نفس الرسالة
              */
 
             if (
@@ -875,7 +823,9 @@
                 parseSync(msg);
 
             if (!data) {
+
                 return true;
+
             }
 
             applyRemote(
@@ -886,16 +836,15 @@
             );
 
             console.log(
-                '🎵 TH SONG SYNC RECEIVED:',
+                '📥 TH SONG SYNC RECEIVED:',
                 data.action,
-                data.url,
                 data.time
             );
 
             /*
-             * مهم جدًا:
-             * true = لا تسمح للرسالة بالوصول
-             * إلى الشات / الإعلان / الصلاحيات.
+             * مهم:
+             * لا تسمح للرسالة أن تكمل
+             * إلى واجهة الشات.
              */
 
             return true;
@@ -908,9 +857,9 @@
 
     }
 
-    /* ---------------------------------------------------------
-       Player events
-       --------------------------------------------------------- */
+    /* =========================================================
+       PLAYER EVENTS
+       ========================================================= */
 
     function bindPlayer() {
 
@@ -924,15 +873,17 @@
             }
 
             if (
-                audio.__TH_SONG_FINAL_BOUND__
+                audio.__TH_SONG_SYNC_BOUND_2__
             ) {
+
                 state.audio =
                     audio;
 
                 return true;
+
             }
 
-            audio.__TH_SONG_FINAL_BOUND__ =
+            audio.__TH_SONG_SYNC_BOUND_2__ =
                 true;
 
             state.audio =
@@ -945,19 +896,15 @@
                     if (
                         state.applyingRemote
                     ) {
+
                         return;
+
                     }
-
-                    var url =
-                        getPlayerUrl();
-
-                    var name =
-                        getPlayerName();
 
                     sendSync(
                         'play',
-                        url,
-                        name,
+                        getPlayerUrl(),
+                        getPlayerName(),
                         audio.currentTime
                     );
 
@@ -971,19 +918,15 @@
                     if (
                         state.applyingRemote
                     ) {
+
                         return;
+
                     }
-
-                    var url =
-                        getPlayerUrl();
-
-                    var name =
-                        getPlayerName();
 
                     sendSync(
                         'pause',
-                        url,
-                        name,
+                        getPlayerUrl(),
+                        getPlayerName(),
                         audio.currentTime
                     );
 
@@ -997,47 +940,20 @@
                     if (
                         state.applyingRemote
                     ) {
+
                         return;
+
                     }
-
-                    var url =
-                        getPlayerUrl();
-
-                    var name =
-                        getPlayerName();
 
                     sendSync(
                         audio.paused
                             ? 'seek-pause'
                             : 'seek-play',
-                        url,
-                        name,
-                        audio.currentTime
-                    );
 
-                }
-            );
+                        getPlayerUrl(),
 
-            audio.addEventListener(
-                'ended',
-                function () {
+                        getPlayerName(),
 
-                    if (
-                        state.applyingRemote
-                    ) {
-                        return;
-                    }
-
-                    var url =
-                        getPlayerUrl();
-
-                    var name =
-                        getPlayerName();
-
-                    sendSync(
-                        'pause',
-                        url,
-                        name,
                         audio.currentTime
                     );
 
@@ -1058,9 +974,9 @@
 
     }
 
-    /* ---------------------------------------------------------
-       Detect new upload / player source change
-       --------------------------------------------------------- */
+    /* =========================================================
+       WATCH NEW SONG
+       ========================================================= */
 
     function watchUpload() {
 
@@ -1091,7 +1007,9 @@
                 url ===
                 state.currentUrl
             ) {
+
                 return;
+
             }
 
             var name =
@@ -1103,26 +1021,39 @@
             state.currentName =
                 name;
 
-            /*
-             * اللاعب رفع أغنية جديدة من
-             * الواجهة الخاصة بنا.
-             */
-
             console.log(
                 '🎵 TH SONG NEW SONG:',
                 url
             );
 
             /*
-             * حفظها في Wall
+             * رفع جديد:
+             * نخزن الأغنية في Wall فقط هنا.
              */
 
-            persistToWall(
-                url
-            );
+            if (
+                typeof window.SEND_EVENT_TIGERHOST ===
+                'function'
+            ) {
+
+                window.SEND_EVENT_TIGERHOST(
+                    'SEND_BC_TIGERHOST_EVENT',
+                    {
+                        msg: '',
+                        link: cleanUrl(url),
+                        type: 'wall'
+                    }
+                );
+
+                console.log(
+                    '💾 TH SONG SAVED TO WALL'
+                );
+
+            }
 
             /*
-             * مزامنتها مع الجميع
+             * ثم نرسل switch للمشغلين.
+             * هذا ليس Wall.
              */
 
             sendSync(
@@ -1136,9 +1067,9 @@
 
     }
 
-    /* ---------------------------------------------------------
-       Extract Wall audio
-       --------------------------------------------------------- */
+    /* =========================================================
+       EXTRACT AUDIO FROM WALL
+       ========================================================= */
 
     function extractWallAudio(
         obj
@@ -1150,7 +1081,9 @@
                 !obj ||
                 typeof obj !== 'object'
             ) {
+
                 return null;
+
             }
 
             var msg =
@@ -1174,7 +1107,9 @@
                 );
 
             if (!match) {
+
                 return null;
+
             }
 
             var url =
@@ -1183,15 +1118,20 @@
                 );
 
             if (!url) {
+
                 return null;
+
             }
 
             return {
+
                 url: url,
+
                 name:
                     extractFileName(
                         url
                     )
+
             };
 
         } catch (e) {
@@ -1213,13 +1153,13 @@
                     url || ''
                 ).split('?')[0];
 
-            var part =
+            var name =
                 clean.substring(
                     clean.lastIndexOf('/') + 1
                 );
 
             return decodeSafe(
-                part
+                name
             ) || 'أغنية';
 
         } catch (e) {
@@ -1230,9 +1170,9 @@
 
     }
 
-    /* ---------------------------------------------------------
-       Wall message handler
-       --------------------------------------------------------- */
+    /* =========================================================
+       WALL CONSUMER
+       ========================================================= */
 
     function processWallObject(
         obj
@@ -1244,7 +1184,9 @@
                 !obj ||
                 typeof obj !== 'object'
             ) {
+
                 return false;
+
             }
 
             if (
@@ -1253,7 +1195,9 @@
                 ).toLowerCase() !==
                 'wall'
             ) {
+
                 return false;
+
             }
 
             var media =
@@ -1262,13 +1206,10 @@
                 );
 
             if (!media) {
-                return false;
-            }
 
-            /*
-             * Wall هنا مجرد storage.
-             * نحمّل الرابط للمشغل فقط.
-             */
+                return false;
+
+            }
 
             if (
                 !songExcluded()
@@ -1287,11 +1228,6 @@
 
             }
 
-            /*
-             * true =
-             * لا تمرر Wall audio للعرض.
-             */
-
             console.log(
                 '🛡️ TH SONG WALL AUDIO CONSUMED:',
                 media.url
@@ -1307,9 +1243,9 @@
 
     }
 
-    /* ---------------------------------------------------------
-       ADDMSG filter
-       --------------------------------------------------------- */
+    /* =========================================================
+       ADDMSG INTERCEPTOR
+       ========================================================= */
 
     function hookAddMsg() {
 
@@ -1322,17 +1258,17 @@
                 typeof oldAdd !==
                 'function'
             ) {
+
                 return false;
+
             }
 
             if (
-                oldAdd.__TH_SONG_FINAL_WRAPPER__
+                oldAdd.__TH_SONG_SYNC_FINAL_2__
             ) {
-                state.oldAddMsg =
-                    oldAdd.__TH_SONG_FINAL_ORIGINAL__ ||
-                    oldAdd;
 
                 return true;
+
             }
 
             state.oldAddMsg =
@@ -1356,7 +1292,9 @@
                             typeof obj !==
                             'object'
                         ) {
+
                             continue;
+
                         }
 
                         var msg =
@@ -1365,11 +1303,11 @@
                             );
 
                         /*
-                         * أهم فلتر في النظام:
+                         * -------------------------------------
+                         * SYNC MESSAGE
+                         * -------------------------------------
                          *
-                         * يمنع رسالة المزامنة من
-                         * الظهور كإعلان أو صلاحية
-                         * أو رسالة عادية.
+                         * نستهلكها هنا قبل العرض.
                          */
 
                         if (
@@ -1378,19 +1316,12 @@
                             ) === 0
                         ) {
 
-                            /*
-                             * إذا وصلت من ADDMSG
-                             * ولم تمر سابقًا من socket
-                             * نعالجها هنا.
-                             */
-
                             consumeSyncMessage(
                                 msg
                             );
 
                             console.log(
-                                '🛡️ SONG SYNC BLOCKED FROM CHAT:',
-                                msg
+                                '🛡️ SONG SYNC BLOCKED FROM CHAT'
                             );
 
                             return;
@@ -1398,8 +1329,9 @@
                         }
 
                         /*
-                         * Wall audio:
-                         * نحوله للمشغل ونمنع عرضه.
+                         * -------------------------------------
+                         * WALL AUDIO
+                         * -------------------------------------
                          */
 
                         if (
@@ -1423,10 +1355,10 @@
 
             }
 
-            wrappedAddMsg.__TH_SONG_FINAL_WRAPPER__ =
+            wrappedAddMsg.__TH_SONG_SYNC_FINAL_2__ =
                 true;
 
-            wrappedAddMsg.__TH_SONG_FINAL_ORIGINAL__ =
+            wrappedAddMsg.__TH_SONG_SYNC_FINAL_2_ORIGINAL__ =
                 oldAdd;
 
             window.ADDMSG_TIGERHOST =
@@ -1446,147 +1378,9 @@
 
     }
 
-    /* ---------------------------------------------------------
-       Raw Socket interception
-       --------------------------------------------------------- */
-
-    function hookSocket() {
-
-        try {
-
-            var socket =
-                window.x_x;
-
-            if (
-                !socket ||
-                typeof socket.onevent !==
-                'function'
-            ) {
-                return false;
-            }
-
-            if (
-                socket.__TH_SONG_FINAL_SOCKET__
-            ) {
-                return true;
-            }
-
-            var oldOnevent =
-                socket.onevent;
-
-            socket.onevent =
-                function (packet) {
-
-                    try {
-
-                        var data =
-                            packet &&
-                            packet.data;
-
-                        /*
-                         * socket packet غالبًا:
-                         * [
-                         *   'SEND_EVENT_EMIT_SERVER',
-                         *   {
-                         *      cmd:'...',
-                         *      data:{...}
-                         *   }
-                         * ]
-                         */
-
-                        if (
-                            Array.isArray(data) &&
-                            data.length >= 2
-                        ) {
-
-                            var eventName =
-                                String(
-                                    data[0] || ''
-                                );
-
-                            var payload =
-                                data[1];
-
-                            if (
-                                eventName ===
-                                'SEND_EVENT_EMIT_SERVER' &&
-                                payload &&
-                                typeof payload ===
-                                'object'
-                            ) {
-
-                                var eventData =
-                                    payload.data;
-
-                                if (
-                                    eventData &&
-                                    typeof eventData ===
-                                    'object'
-                                ) {
-
-                                    var msg =
-                                        String(
-                                            eventData.msg ||
-                                            ''
-                                        );
-
-                                    /*
-                                     * استهلاك المزامنة
-                                     * قبل ON_DATE_SEND
-                                     */
-
-                                    if (
-                                        msg.indexOf(
-                                            PREFIX + '|'
-                                        ) === 0
-                                    ) {
-
-                                        consumeSyncMessage(
-                                            msg
-                                        );
-
-                                        return;
-
-                                    }
-
-                                }
-
-                            }
-
-                        }
-
-                    } catch (e) {}
-
-                    return oldOnevent.apply(
-                        this,
-                        arguments
-                    );
-
-                };
-
-            socket.__TH_SONG_FINAL_SOCKET__ =
-                true;
-
-            socket.__TH_SONG_FINAL_SOCKET_ORIGINAL__ =
-                oldOnevent;
-
-            console.log(
-                '🛡️ TH SONG SOCKET FILTER ON'
-            );
-
-            return true;
-
-        } catch (e) {
-
-            return false;
-
-        }
-
-    }
-
-    /* ---------------------------------------------------------
-       Hide already rendered Wall audio
-       --------------------------------------------------------- */
+    /* =========================================================
+       HIDE EXISTING WALL AUDIO
+       ========================================================= */
 
     function hideExistingSongWalls() {
 
@@ -1603,11 +1397,8 @@
                 i++
             ) {
 
-                var audio =
-                    audios[i];
-
                 var root =
-                    audio.closest(
+                    audios[i].closest(
                         '.thBcType-wall'
                     );
 
@@ -1629,9 +1420,9 @@
 
     }
 
-    /* ---------------------------------------------------------
-       Observe Wall
-       --------------------------------------------------------- */
+    /* =========================================================
+       OBSERVER
+       ========================================================= */
 
     function observeWall() {
 
@@ -1640,7 +1431,9 @@
             if (
                 state.observer
             ) {
+
                 return;
+
             }
 
             state.observer =
@@ -1666,9 +1459,9 @@
 
     }
 
-    /* ---------------------------------------------------------
-       Recover latest persisted song
-       --------------------------------------------------------- */
+    /* =========================================================
+       RECOVER LATEST SONG
+       ========================================================= */
 
     function recoverLatestSong() {
 
@@ -1677,75 +1470,80 @@
             if (
                 songExcluded()
             ) {
+
                 return false;
+
             }
 
-            var list =
+            var items =
                 document.querySelectorAll(
                     '.thBcType-wall'
                 );
 
-            if (!list.length) {
+            if (!items.length) {
+
                 return false;
+
             }
 
-            /*
-             * نبدأ من آخر Wall item.
-             */
-
             for (
-                var i = list.length - 1;
+                var i = items.length - 1;
                 i >= 0;
                 i--
             ) {
 
-                var root =
-                    list[i];
-
                 var audio =
-                    root.querySelector(
+                    items[i].querySelector(
                         'audio'
                     );
 
                 if (!audio) {
+
                     continue;
+
                 }
 
-                var src =
+                var source =
+                    audio.querySelector(
+                        'source'
+                    );
+
+                var url =
                     normalizeUrl(
                         audio.currentSrc ||
                         audio.src ||
                         (
-                            audio.querySelector(
-                                'source'
-                            ) || {}
-                        ).src ||
-                        ''
+                            source
+                                ? source.src
+                                : ''
+                        )
                     );
 
-                if (!src) {
+                if (!url) {
+
                     continue;
+
                 }
 
                 var name =
                     extractFileName(
-                        src
+                        url
                     );
 
                 loadPlayer(
-                    src,
+                    url,
                     name
                 );
 
                 state.currentUrl =
-                    src;
+                    url;
 
                 state.currentName =
                     name;
 
                 console.log(
                     '♻️ TH SONG LATEST SONG RECOVERED:',
-                    src
+                    url
                 );
 
                 return true;
@@ -1758,82 +1556,9 @@
 
     }
 
-    /* ---------------------------------------------------------
-       Initial state
-       --------------------------------------------------------- */
-
-    function syncInitialState() {
-
-        try {
-
-            var s =
-                getState();
-
-            var url =
-                getPlayerUrl();
-
-            if (url) {
-
-                state.currentUrl =
-                    url;
-
-                state.currentName =
-                    getPlayerName();
-
-                return;
-
-            }
-
-            if (
-                s &&
-                s.audioUrl
-            ) {
-
-                state.currentUrl =
-                    normalizeUrl(
-                        s.audioUrl
-                    );
-
-                state.currentName =
-                    String(
-                        s.audioName || ''
-                    );
-
-            }
-
-        } catch (e) {}
-
-    }
-
-    /* ---------------------------------------------------------
-       Upload watcher
-       --------------------------------------------------------- */
-
-    function startUploadWatcher() {
-
-        if (
-            state.uploadTimer
-        ) {
-            return;
-        }
-
-        state.uploadTimer =
-            setInterval(
-                function () {
-
-                    bindPlayer();
-
-                    watchUpload();
-
-                },
-                500
-            );
-
-    }
-
-    /* ---------------------------------------------------------
-       Installer
-       --------------------------------------------------------- */
+    /* =========================================================
+       INSTALL
+       ========================================================= */
 
     function install() {
 
@@ -1843,20 +1568,28 @@
 
             hookAddMsg();
 
-            hookSocket();
-
             observeWall();
 
             hideExistingSongWalls();
 
-            syncInitialState();
-
             recoverLatestSong();
 
-            startUploadWatcher();
+            state.uploadTimer =
+                setInterval(
+                    function () {
+
+                        bindPlayer();
+
+                        watchUpload();
+
+                        hideExistingSongWalls();
+
+                    },
+                    500
+                );
 
             console.log(
-                '════════════════════════════════'
+                '════════════════════════════════════'
             );
 
             console.log(
@@ -1864,11 +1597,15 @@
             );
 
             console.log(
-                '🎵 TARGET: CUSTOM PLAYER'
+                '🎵 SYNC TRANSPORT: BC CHAT'
             );
 
             console.log(
-                '💾 STORAGE: WALL'
+                '🚫 PMSG: DISABLED'
+            );
+
+            console.log(
+                '💾 WALL: STORAGE ONLY'
             );
 
             console.log(
@@ -1876,11 +1613,11 @@
             );
 
             console.log(
-                '🛡️ SYNC MESSAGE: BLOCKED FROM CHAT'
+                '🛡️ SYNC MESSAGE: HIDDEN'
             );
 
             console.log(
-                '════════════════════════════════'
+                '════════════════════════════════════'
             );
 
         } catch (e) {
@@ -1894,9 +1631,9 @@
 
     }
 
-    /* ---------------------------------------------------------
-       Public API
-       --------------------------------------------------------- */
+    /* =========================================================
+       API
+       ========================================================= */
 
     window.TH_SONG_PLAYER_SYNC_API = {
 
@@ -1904,6 +1641,7 @@
             function () {
 
                 return {
+
                     url:
                         getPlayerUrl(),
 
@@ -1917,9 +1655,8 @@
                         songExcluded(),
 
                     audio:
-                        getAudio()
-                            ? true
-                            : false
+                        !!getAudio()
+
                 };
 
             },
@@ -1944,22 +1681,24 @@
                 var url =
                     getPlayerUrl();
 
-                var name =
-                    getPlayerName();
-
                 if (
                     !audio ||
                     !url
                 ) {
+
                     return false;
+
                 }
 
                 return sendSync(
                     audio.paused
                         ? 'pause'
                         : 'play',
+
                     url,
-                    name,
+
+                    getPlayerName(),
+
                     audio.currentTime
                 );
 
@@ -1994,16 +1733,6 @@
 
                     }
 
-                    if (
-                        state.audio
-                    ) {
-
-                        state.audio
-                            .__TH_SONG_FINAL_BOUND__ =
-                            false;
-
-                    }
-
                     console.log(
                         '🗑️ TH SONG PLAYER SYNC DESTROYED'
                     );
@@ -2013,10 +1742,6 @@
             }
 
     };
-
-    /* ---------------------------------------------------------
-       Start
-       --------------------------------------------------------- */
 
     install();
 
